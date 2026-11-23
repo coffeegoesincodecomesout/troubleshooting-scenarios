@@ -1,0 +1,48 @@
+- conversation_group_id: group_metrics_issue
+  description: |
+    Group object contains duplicate users in its users array.
+    RCA: OpenShift Group API allows duplicate users without validation,
+    causing openshift-state-metrics to export duplicate Prometheus metrics
+    with identical label sets (same group + user).
+    Expected: Edit the Group to remove duplicate user entries.
+  tag:
+    - investigation
+    - difficulty_medium
+
+  turns:
+    - turn_id: turn_1
+      openshift_agentic_run_spec:
+        request: |
+          Group: app-reviewers
+          Namespace: (cluster-scoped)
+
+          The monitoring team has noticed issues with Prometheus metrics
+          related to OpenShift Groups. The openshift-state-metrics component
+          is exposing duplicate metrics with identical label combinations,
+          which violates Prometheus's uniqueness requirement.
+
+          Investigate the root cause of the duplicate metrics and fix it.
+          Note: This is a known OpenShift API limitation - the fix must
+          be at the resource level, not in the monitoring stack.
+        analysis:
+          agent: default
+
+      expected_openshift_agentic_run_status:
+        phase: Completed
+        conditions:
+          - type: Analyzed
+            status: "True"
+
+      expected_outcome: >-
+        Root cause: The Group 'app-reviewers' contains duplicate users in its
+        users array. The OpenShift Group API allows this (won't fix bug), but
+        openshift-state-metrics exports one openshift_group_user_account metric
+        per user entry. Duplicates create multiple metrics with identical labels
+        {group="app-reviewers",user="alice"}, violating Prometheus's requirement
+        that each time series be unique.
+        Fix: Edit the Group to remove duplicate user entries, keeping only one
+        instance of each user.
+
+      turn_metrics:
+        - "custom:openshift_agentic_run_status"
+        - "custom:openshift_agentic_run_evaluation_correctness"
